@@ -1,0 +1,17 @@
+input[type="checkbox"] {
+    border-radius: 4px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    color: rgb(79 70 229);
+    height: 16px;
+    width: 16px;
+}
+
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+    --tw-ring-color: rgb(79 70 229) !important;
+    --tw-opacity: 1 !important;
+    color: rgb(79 70 229) !important;
+}

@@ -77,6 +77,7 @@ module.exports = {
                     '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
                 'tremor-dropdown':
                     '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                custom: '0 0 0 2px rgba(168, 85, 247, 0.5)',
             },
             borderRadius: {
                 '4xl': '2rem',
@@ -97,6 +98,15 @@ module.exports = {
             maxWidth: {
                 '2xl': '40rem',
             },
+            borderColor: {
+                custom: '#a855f7',
+            },
+            ringOffsetColor: {
+                custom: '#a855f7',
+            },
+            ringColor: {
+                custom: '#a855f7',
+            },
         },
         screens: {
             "xs": "450px",
@@ -109,7 +119,19 @@ module.exports = {
         require('@headlessui/tailwindcss'),
         plugin(function ({ addVariant }) {
             addVariant('disabled-within', `&:has(input:is(:disabled),button:is(:disabled),textarea:is(:disabled))`)
-        })
+        }),
+        function ({ addUtilities, theme }) {
+            addUtilities({
+                'input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus': {
+                    outline: 'none',
+                    '--tw-ring-offset-width': '0px !important',
+                    'box-shadow': `var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) ${theme('ringColor.custom')} !important`,
+                    'border-color': `${theme('borderColor.custom')} !important`,
+                    '--tw-ring-offset-color': `${theme('ringOffsetColor.custom')} !important`,
+                    '--tw-ring-color': `${theme('ringColor.custom')} !important`,
+                },
+            }, ['focus']);
+        },
     ],
     safelist: [
         // new safelist logic https://tailwindcss.com/docs/content-configuration#using-regular-expressions
