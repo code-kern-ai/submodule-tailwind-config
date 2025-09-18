@@ -97,6 +97,7 @@ module.exports = {
             },
             maxWidth: {
                 '2xl': '40rem',
+                '3xs': '16rem',
             },
             borderColor: {
                 custom: '#a855f7',
