@@ -141,6 +141,7 @@ module.exports = {
         { pattern: /(bg)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|100|200|300|500|600)/, variants: ['hover'] },
         { pattern: /(from)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(500)/ },
         { pattern: /(to)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(300)/ },
+        { pattern: /(outline)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(300|600)/ },
         // patterns for submodules
         { pattern: /(border)-(gray)-(200|800)/, },
         { pattern: /(bg)-(neutral)-(800)/, },
