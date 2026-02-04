@@ -1,0 +1,503 @@
+---
+description: Guidelines for developing in the tailwind-config submodule
+alwaysApply: true
+globs:
+  - "*"
+---
+
+# Tailwind Config Submodule
+
+This is a shared Tailwind CSS configuration. Changes here affect all consuming applications that use the preset.
+
+## Usage Pattern
+
+The config is imported via presets in consuming applications:
+
+```javascript
+// In root tailwind.config.js
+module.exports = {
+  presets: [
+    require('./submodules/tailwind-config/tailwind.config.js'),
+  ]
+}
+```
+
+## Color Configuration
+
+### Import Only Needed Color Variants
+
+**Problem:** Importing entire color objects includes all shades (100-900), increasing bundle size unnecessarily.
+
+```javascript
+// ❌ BAD - imports entire color object with all variants
+import colors from 'tailwindcss/colors';
+colors: {
+  brand: colors.blue, // includes blue-50 through blue-950
+}
+```
+
+```javascript
+// ✅ GOOD - import only specific variants needed
+import colors from 'tailwindcss/colors';
+colors: {
+  brand: {
+    faint: colors.blue[50],
+    muted: colors.blue[200],
+    subtle: colors.blue[400],
+    DEFAULT: colors.blue[500],
+    emphasis: colors.blue[700],
+  }
+}
+```
+
+**Rule:** Always import specific color variants (e.g., `colors.blue[50]`) rather than entire color objects. Only include the shades actually used in the design system.
+
+### Custom Color Definitions
+
+Define custom colors in the `extend.colors` section:
+
+```javascript
+extend: {
+  colors: {
+    kernindigo: {
+      DEFAULT: "#0C052E",
+      dark: "#06023b",
+      darker: "#4F46E5",
+      "darker-1": "#312E81",
+      light: "#EEF2FF",
+    },
+  }
+}
+```
+
+## Plugins
+
+### Adding Plugins
+
+Plugins extend Tailwind's functionality. Add them to the `plugins` array:
+
+```javascript
+plugins: [
+  // External plugins
+  require('@tailwindcss/forms'),
+  require('@headlessui/tailwindcss'),
+  
+  // Custom plugin functions
+  plugin(function ({ addVariant }) {
+    addVariant('disabled-within', `&:has(input:is(:disabled),button:is(:disabled))`)
+  }),
+  
+  // Utility plugins
+  function ({ addUtilities, theme }) {
+    addUtilities({
+      '.custom-utility': {
+        // utility styles
+      }
+    });
+  },
+]
+```
+
+### Plugin Guidelines
+
+1. **Order matters** - Plugins are applied in order, later plugins can override earlier ones
+2. **Use `plugin()` helper** - For variants and utilities (automatically handles prefixes and `!important`)
+3. **Access theme values** - Use `theme()` function to reference theme values
+4. **Document custom plugins** - Add comments explaining what custom plugins do
+5. **Use CSS `@layer` for simple utilities** - For one-off utilities, consider using CSS instead
+
+### When to Use Plugins vs CSS
+
+**Use plugins when:**
+- Creating reusable utilities across multiple projects
+- Need dynamic utilities based on theme values
+- Creating variants or component classes
+- Utilities need to respect Tailwind's prefix/important settings
+
+**Use CSS `@layer` when:**
+- Simple, one-off utilities
+- Utilities don't need theme access
+- Keeping styles in CSS files is preferred
+
+```javascript
+// ✅ GOOD - plugin for reusable utility with theme access
+plugin(function ({ addUtilities, theme }) {
+  addUtilities({
+    '.custom-focus': {
+      outline: 'none',
+      'box-shadow': `0 0 0 2px ${theme('colors.custom')}`,
+    }
+  });
+})
+```
+
+```css
+/* ✅ GOOD - CSS @layer for simple utility */
+@layer utilities {
+  .scroll-snap-none { scroll-snap-type: none; }
+  .scroll-snap-x { scroll-snap-type: x; }
+}
+```
+
+### Plugin Best Practices
+
+```javascript
+// ✅ GOOD - documented custom plugin with clear purpose
+plugin(function ({ addVariant }) {
+  // Adds variant for parent elements containing disabled inputs/buttons
+  // Usage: <div class="disabled-within:opacity-50">
+  addVariant('disabled-within', `&:has(input:is(:disabled),button:is(:disabled))`)
+})
+
+// ✅ GOOD - utility plugin that respects theme configuration
+function ({ addUtilities, theme }) {
+  addUtilities({
+    '.input-focus': {
+      outline: 'none',
+      '--tw-ring-offset-width': '0px !important',
+      'box-shadow': `var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) ${theme('ringColor.custom')} !important`,
+    },
+  }, ['focus']);
+}
+```
+
+## Safelist Patterns
+
+Use safelist **only** for dynamically generated classes that Tailwind can't detect statically (e.g., classes from API responses, user-generated content, or third-party libraries).
+
+### When to Use Safelist
+
+**Use safelist when:**
+- Classes come from external data sources (API, database, user input)
+- Third-party components generate classes dynamically
+- Classes are constructed in ways Tailwind can't statically analyze
+
+**Avoid safelist when:**
+- You can use complete static class names with conditionals
+- Classes are defined in your source code (Tailwind will detect them)
+
+### Pattern Syntax
+
+```javascript
+safelist: [
+  // Pattern matching with regex
+  { pattern: /(text)-(blue|green|red)-(500|600|700)/ },
+  
+  // With variants (hover, focus, etc.)
+  { pattern: /(bg)-(gray)-(100|200)/, variants: ['hover', 'focus'] },
+  
+  // Specific classes (use sparingly - prefer patterns)
+  'bg-red-500',
+]
+```
+
+### Best Practices
+
+1. **Use patterns, not individual classes** - More maintainable and performant
+2. **Limit color ranges** - Only include shades actually used
+3. **Document why** - Add comments explaining safelist entries
+4. **Be specific** - Narrow patterns to actual use cases
+
+```javascript
+// ✅ GOOD - specific pattern with comment
+safelist: [
+  // Safelist for dynamic text colors used in status badges from API
+  { pattern: /(text)-(slate|gray|red|green|blue)-(500|600|700|800)/ },
+  
+  // Background colors with hover states for interactive elements
+  { pattern: /(bg)-(gray|blue)-(50|100|200|300|500|600)/, variants: ['hover'] },
+  
+  // Tremor library requires these classes
+  { pattern: /(fill)-(slate|gray|blue)-(100|300|400|500|900)/ },
+]
+```
+
+```javascript
+// ❌ BAD - too broad, includes unused shades (increases bundle size)
+safelist: [
+  { pattern: /(text)-(.*)-(.*)/ }, // matches everything - wasteful
+  { pattern: /(bg)-(.*)-(.*)/ },   // includes all colors and shades
+]
+
+// ❌ BAD - safelisting classes that could be static
+safelist: [
+  'text-red-500', // This should be in your component code instead
+]
+```
+
+## Theme Extensions
+
+### Extending Default Theme
+
+Use `extend` to add to Tailwind's default theme without overriding:
+
+```javascript
+theme: {
+  extend: {
+    colors: { /* custom colors */ },
+    fontSize: { /* custom font sizes */ },
+    boxShadow: { /* custom shadows */ },
+  }
+}
+```
+
+### Overriding Default Theme
+
+Use direct properties (not `extend`) to replace defaults:
+
+```javascript
+theme: {
+  screens: {
+    "xs": "450px",
+    'small': { 'raw': '(max-height: 1200px)' },
+    ...defaultTheme.screens, // merge with defaults
+  }
+}
+```
+
+## Content Configuration
+
+Define content paths to scan for class usage:
+
+```javascript
+content: [
+  './src/**/*.{js,jsx,ts,tsx}',
+  './submodules/**/*.{js,ts,jsx,tsx}',
+  // External dependencies
+  './node_modules/@tremor/**/*.{js,ts,jsx,tsx}',
+]
+```
+
+**Rule:** Include all paths where Tailwind classes are used, including submodules and third-party components.
+
+### Content Detection Best Practices
+
+Tailwind scans source files as plain text to detect utility classes. **Always use complete, static class names** rather than dynamic concatenation.
+
+```typescript
+// ❌ BAD - dynamic class construction (Tailwind can't detect these)
+<div className={`text-${color}-600`} />
+<div className={`bg-${error ? 'red' : 'green'}-500`} />
+```
+
+```typescript
+// ✅ GOOD - complete static class names
+<div className={color === 'red' ? 'text-red-600' : 'text-blue-600'} />
+<div className={error ? 'bg-red-500' : 'bg-green-500'} />
+
+// ✅ GOOD - map props to complete class names
+const colorMap = {
+  error: 'text-red-600',
+  success: 'text-green-600',
+  warning: 'text-yellow-600',
+};
+<div className={colorMap[status]} />
+```
+
+**Rule:** For dynamic classes, use conditional rendering with complete class names or map values to static classes. Only use safelist when classes are truly generated dynamically (e.g., from API responses).
+
+## Font Configuration
+
+Extend font families using spread operator:
+
+```javascript
+fontFamily: {
+  sans: ['Inter', ...defaultTheme.fontFamily.sans],
+  display: ['Lexend', ...defaultTheme.fontFamily.sans],
+}
+```
+
+## Performance Optimization
+
+Tailwind CSS generates only the CSS you actually use, typically resulting in CSS files under 10kB even for large projects. Follow these practices to maintain optimal performance:
+
+### Bundle Size Optimization
+
+1. **Import only needed color variants** - Don't import entire color objects
+2. **Use specific safelist patterns** - Avoid overly broad regex patterns
+3. **Prefer static class names** - Avoid dynamic class construction when possible
+4. **Limit safelist scope** - Only safelist classes that truly can't be detected statically
+
+### Production Build Optimization
+
+**Minification:**
+- Use `--minify` flag with Tailwind CLI in production
+- Or add `cssnano` to PostCSS plugins for minification
+
+**Compression:**
+- Enable Brotli compression for additional file size reduction
+- With optimized CSS files this small, you can ship a single cached CSS file
+
+**Caching Strategy:**
+- Small CSS files enable effective caching
+- Single cached CSS file can be reused until redeployment
+- Avoids complex code-splitting solutions
+
+### Build Performance
+
+- **Use PostCSS exclusively** - Avoid additional preprocessors like Sass for faster builds
+- **Limit content paths** - Only scan directories that actually contain Tailwind classes
+- **Optimize safelist** - Each safelist pattern adds to build time and bundle size
+
+## Best Practices
+
+### 1. Keep It Maintainable
+
+- Group related configurations together
+- Use descriptive names for custom values
+- Add comments for non-obvious configurations
+- Keep plugin functions focused and single-purpose
+
+### 2. Performance
+
+- Only include color variants actually used
+- Use safelist patterns instead of individual classes
+- Limit safelist patterns to necessary ranges
+- Avoid dynamic class construction in favor of static class names
+- Regularly audit safelist patterns for unused classes
+
+### 3. Consistency
+
+- Follow existing naming conventions (e.g., `kernindigo`, `kernpurple`)
+- Use consistent color scales (50, 100, 200, etc.)
+- Document custom utilities and variants
+- Maintain consistent plugin ordering
+
+### 4. Testing
+
+When modifying the config:
+1. Test in consuming applications
+2. Verify classes are generated correctly
+3. Check bundle size impact (compare before/after)
+4. Ensure safelist patterns match actual usage
+5. Verify production build includes expected classes
+6. Test that dynamic classes work as expected
+
+## Common Patterns
+
+### Custom Variants
+
+Create custom variants for specific use cases:
+
+```javascript
+// ✅ GOOD - custom variant with clear selector
+plugin(function ({ addVariant }) {
+  // Adds variant for parent elements containing disabled inputs/buttons
+  addVariant('disabled-within', `&:has(input:is(:disabled),button:is(:disabled))`)
+  
+  // Usage: <div class="disabled-within:opacity-50">
+})
+
+// ✅ GOOD - variant with multiple selectors
+plugin(function ({ addVariant }) {
+  addVariant('not-first', '&:not(:first-child)')
+  addVariant('not-last', '&:not(:last-child)')
+})
+```
+
+### Custom Utilities
+
+Create reusable utility classes:
+
+```javascript
+// ✅ GOOD - utility with theme access
+function ({ addUtilities, theme }) {
+  addUtilities({
+    '.custom-focus': {
+      outline: 'none',
+      'box-shadow': `0 0 0 2px ${theme('colors.custom')}`,
+      'border-color': theme('borderColor.custom'),
+    }
+  }, ['focus']); // Apply only on focus state
+}
+
+// ✅ GOOD - utility plugin with multiple utilities
+plugin(function ({ addUtilities }) {
+  addUtilities({
+    '.scrollbar-hide': {
+      '-ms-overflow-style': 'none',
+      'scrollbar-width': 'none',
+      '&::-webkit-scrollbar': { display: 'none' },
+    },
+  });
+})
+```
+
+### Dynamic Utilities with matchUtilities
+
+For utilities that accept values:
+
+```javascript
+plugin(function ({ matchUtilities, theme }) {
+  matchUtilities({
+    'scroll-mt': (value) => ({
+      'scroll-margin-top': value,
+    }),
+  }, {
+    values: theme('spacing'),
+  });
+})
+```
+
+### Responsive Breakpoints
+
+Extend or override default breakpoints:
+
+```javascript
+screens: {
+  "xs": "450px", // Custom breakpoint
+  'small': { 'raw': '(max-height: 1200px)' }, // Media query
+  ...defaultTheme.screens, // Merge with defaults: sm, md, lg, xl, 2xl
+}
+```
+
+### Component Classes
+
+Create component-level classes (use sparingly):
+
+```javascript
+plugin(function ({ addComponents, theme }) {
+  addComponents({
+    '.btn': {
+      padding: theme('spacing.2'),
+      borderRadius: theme('borderRadius.md'),
+      fontWeight: theme('fontWeight.semibold'),
+      '&:hover': {
+        backgroundColor: theme('colors.blue.600'),
+      },
+    },
+  });
+})
+```
+
+**Note:** Prefer utility classes over component classes for better flexibility and smaller bundle size.
+
+## Quick Reference
+
+### Configuration Checklist
+
+When modifying the Tailwind config:
+
+- [ ] Colors: Import only specific variants needed (`colors.blue[50]`, not `colors.blue`)
+- [ ] Plugins: Document custom plugins with comments
+- [ ] Safelist: Use specific patterns, avoid overly broad regex
+- [ ] Content: Include all paths where classes are used
+- [ ] Performance: Check bundle size impact
+- [ ] Testing: Verify classes generate correctly in production
+
+### Common Mistakes to Avoid
+
+1. ❌ Importing entire color objects instead of specific variants
+2. ❌ Using dynamic class construction (`text-${color}-500`) instead of static classes
+3. ❌ Overly broad safelist patterns that include unused classes
+4. ❌ Missing content paths for submodules or third-party components
+5. ❌ Not documenting custom plugins and their usage
+6. ❌ Using safelist for classes that could be static
+
+### Key Principles
+
+- **Performance First**: Only include what you use
+- **Static Over Dynamic**: Prefer complete static class names
+- **Specific Over General**: Narrow patterns and color ranges
+- **Document Everything**: Comments help future maintainers
+- **Test Thoroughly**: Verify in production builds
